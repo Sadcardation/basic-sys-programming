@@ -145,7 +145,13 @@ unsigned long get_data_segment_size() {
 }
 
 unsigned long get_data_segment_free_space_size() {
-  return size_free_mem;
+  mem_block *current = free_mem_blocks;
+  unsigned long size = 0;
+  while (current != NULL) {
+    size += current->size + META_SIZE;
+    current = current->next;
+  }
+  return size;
 }
 
 // void get_free_list_size() {
