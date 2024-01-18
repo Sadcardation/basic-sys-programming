@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
 
   data_segment_size = get_data_segment_size();
   data_segment_free_space = get_data_segment_free_space_size();
+  printf("data_segment_size = %lu, data_segment_free_space = %lu\n", data_segment_size, data_segment_free_space);
 
   double elapsed_ns = calc_time(start_time, end_time);
   printf("Execution Time = %f seconds\n", elapsed_ns / 1e9);
