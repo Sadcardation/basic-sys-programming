@@ -20,7 +20,7 @@ void list_update(mem_block *block, size_t size) {
   delete_block(block);
 }
 
-mem_block *find_free_block(size_t size, const char *policy) {
+mem_block *find_free_block_FF(size_t size) {
   mem_block *current = free_mem_blocks;
   while (current != NULL) {
     if (current->size >= size) {
@@ -30,7 +30,30 @@ mem_block *find_free_block(size_t size, const char *policy) {
     current = current->next;
   }
   return NULL;
-  // TODO: implement best fit
+}
+
+mem_block *find_free_block_BF(size_t size) {
+  mem_block *current = free_mem_blocks;
+  mem_block *best_block = NULL;
+  while (current != NULL) {
+    if (current->size >= size) {
+      if (current->size == size) {
+        list_update(current, size);
+        return (void *)current + META_SIZE;
+      }
+      if (best_block == NULL) {
+        best_block = current;
+      } else if (current->size < best_block->size) {
+        best_block = current;
+      }
+    }
+    current = current->next;
+  }
+  if (best_block != NULL) {
+    list_update(best_block, size);
+    return (void *)best_block + META_SIZE;
+  }
+  return NULL;
 }
 
 void *new_mem_block(size_t size) {
@@ -116,11 +139,22 @@ void delete_block(mem_block *block) {
 
 // first fit
 void *ff_malloc(size_t size) {
-  void *result = find_free_block(size, "FF");
+  void *result = find_free_block_FF(size);
   return (result != NULL) ? result : new_mem_block(size);
 }
 
 void ff_free(void *ptr) {
+  mem_block *block = (void *)ptr - META_SIZE;
+  insert_block(block);
+}
+
+// best fit
+void *bf_malloc(size_t size) {
+  void *result = find_free_block_BF(size);
+  return (result != NULL) ? result : new_mem_block(size);
+}
+
+void bf_free(void *ptr) {
   mem_block *block = (void *)ptr - META_SIZE;
   insert_block(block);
 }

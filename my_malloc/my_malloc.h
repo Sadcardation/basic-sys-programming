@@ -16,7 +16,8 @@ typedef struct mem_block_t mem_block;
 
 // helper functions
 void list_update(mem_block *block, size_t size);
-mem_block *find_free_block(size_t size, const char *policy);
+mem_block *find_free_block_FF(size_t size);
+mem_block *find_free_block_BF(size_t size);
 void *new_mem_block(size_t size);
 void merge_free_blocks(mem_block *block);
 void insert_block(mem_block *block);
@@ -28,7 +29,7 @@ void ff_free(void *ptr);
 
 // best fit
 void *bf_malloc(size_t size);
-void bf_free(size_t size);
+void bf_free(void *ptr);
 
 // performance measurement
 unsigned long get_data_segment_size(); // in bytes
