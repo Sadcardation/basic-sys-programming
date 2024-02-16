@@ -54,3 +54,4 @@ dkms.conf
 # vscode
 .vscode/
 thread-safe_malloc/thread_tests/results
+.clang-format
