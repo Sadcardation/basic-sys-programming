@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -26,7 +27,7 @@ int main(int argc, char* argv[]) {
   cout << "Potato Ringmaster" << endl;
   cout << "Players = " << num_players << endl;
   cout << "Hops = " << num_hops << endl;
-  
+
   if (atoi(num_players) <= 1) {
     cerr << "Number of players must be greater than 1." << endl;
     exit(EXIT_FAILURE);
@@ -38,11 +39,6 @@ int main(int argc, char* argv[]) {
 
   Potato potato(atoi(num_hops));
   vector<Player> players;
-
-  // pre add trace
-  for (int i = 0; i < atoi(num_hops); i++) {
-    potato.add_trace(-1);
-  }
 
   int listener = socket_build(NULL, port_num, side);
 
@@ -78,10 +74,12 @@ int main(int argc, char* argv[]) {
 
   int connected_players = 0;
   int all_ready = 0;
+
+  // game initialization
   while (all_ready != atoi(num_players)) {
     read_fds = master;  // copy it
     if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
-      perror("select");
+      cerr << "select" << endl;
       exit(EXIT_FAILURE);
     }
 
@@ -160,4 +158,59 @@ int main(int argc, char* argv[]) {
       }
     }
   }
+
+  // game start
+
+  // send potato to a random player
+  srand((unsigned int)time(NULL) + stoul(num_players));
+  int init_player = rand() % atoi(num_players);
+  cout << "Ready to start the game, sending potato to player " << init_player
+       << endl;
+
+  string potato_msg = potato.serialize();
+  print_string_details(potato_msg);
+  if (!send_str_with_header(socket_of_player(init_player, players), potato_msg)) {
+    cerr << "Failed to send potato to player " << init_player << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  bool game_over = false;
+  while (!game_over) {
+    read_fds = master;  // copy it
+    if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
+      cerr << "select" << endl;
+      exit(EXIT_FAILURE);
+    }
+
+    for (int i = 0; i <= fdmax; i++) {
+      if (FD_ISSET(i, &read_fds)) {
+        if (i != listener) {
+          if (!recv_str_with_header(i, potato_msg)) {
+            cerr << "Failed to receive potato." << endl;
+            exit(EXIT_FAILURE);
+          }
+          Potato p = Potato::deserialize(potato_msg);
+          if (p.get_hops() == 0) {
+            cout << "Trace of the potato:" << endl;
+            p.print_trace();
+            cout << "Game over" << endl;
+            for (Player player : players) {
+              if (!send_str_with_header(player.get_socket(), "game_over")) {
+                cerr << "Failed to send game over." << endl;
+                exit(EXIT_FAILURE);
+              }
+            }
+            game_over = true;
+          }
+        }
+      }
+    }
+  }
+
+  // close all sockets and exit
+  for (Player player : players) {
+    close(player.get_socket());
+  }
+  close(listener);
+  return EXIT_SUCCESS;
 }

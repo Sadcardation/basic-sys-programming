@@ -20,10 +20,11 @@ struct sockaddr_storage Player::get_addr() { return addr; }
 string Player::get_server_port() { return server_port; }
 void Player::set_server_port(string port) { server_port = port; }
 
-void print_string_details(const std::string& str) {
-    for (char c : str) {
-        std::cout << "Character: " << c << ", ASCII: " << static_cast<int>(c) << std::endl;
-    }
+void print_string_details(const std::string &str) {
+  for (char c : str) {
+    std::cout << "Character: " << c << ", ASCII: " << static_cast<int>(c)
+              << std::endl;
+  }
 }
 
 int socket_build(const char *nodename, const char *servname,
@@ -43,29 +44,38 @@ int socket_build(const char *nodename, const char *servname,
     cerr << "getaddrinfo: " << gai_strerror(rv) << endl;
     exit(1);
   }
-
+  cout << "Got address info" << endl;
+  int count = 0;
   for (p = ai; p != NULL; p = p->ai_next) {
+    cout << "trying " << count++ << endl;
     sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    cout << "finished " << count << endl;
     if (sockfd < 0) {
+      cerr << "Failed to open socket:" << std::strerror(errno) << endl;
       continue;
     }
 
+    cout << "Socket opened" << endl;
     // Lose the pesky "address already in use" error message
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-
+    cout << "Set socket options" << endl;
     if (side == "server" && (bind(sockfd, p->ai_addr, p->ai_addrlen) < 0)) {
+      cerr << "Failed to bind:" << std::strerror(errno) << endl;
       close(sockfd);
       continue;
     }
 
     if (side == "player" && (connect(sockfd, p->ai_addr, p->ai_addrlen) < 0)) {
+      cerr << "Failed to connect:" << std::strerror(errno) << endl;
       close(sockfd);
       continue;
     }
+    cout << "Socket connected" << endl;
 
     break;
   }
-
+  
+  cout << "Socket built: " << sockfd << endl;
   // If we got here, it means we didn't get bound
   if (p == NULL) {
     return -1;
@@ -75,6 +85,7 @@ int socket_build(const char *nodename, const char *servname,
 
   // Listen
   if (side == "server" && (listen(sockfd, 10) == -1)) {
+    cerr << "Failed to listen:" << std::strerror(errno) << endl;
     return -1;
   }
 
@@ -119,9 +130,12 @@ bool send_all_str(int socket, const void *buffer, size_t length) {
   const char *ptr = (const char *)buffer;
   while (length > 0) {
     ssize_t i = send(socket, ptr, length, 0);
-    if (i < 1) return false;  // Return false on send error
-    ptr += i;                 // Move pointer past bytes sent
-    length -= i;              // Decrease remaining bytes to send
+    if (i < 1) {
+      std::cerr << "send() failed: " << std::strerror(errno) << std::endl;
+      return false;
+    }             // Return false on send error
+    ptr += i;     // Move pointer past bytes sent
+    length -= i;  // Decrease remaining bytes to send
   }
   return true;  // Return true when all data is sent
 }
@@ -188,6 +202,7 @@ int connect_player_serv(string player_addr) {
   if (colon_pos != string::npos) {
     string nodename = player_addr.substr(0, colon_pos);
     string servname = player_addr.substr(colon_pos + 1);
+    cout << "Connecting to " << nodename << " at port " << servname << endl;
 
     return socket_build(nodename.c_str(), servname.c_str(), "player");
   }

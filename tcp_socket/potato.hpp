@@ -1,4 +1,7 @@
 #include <vector>
+#include <string>
+#include <iostream>
+#include <sstream>
 
 using namespace std;
 class Potato {
@@ -14,4 +17,7 @@ public:
   int get_hops() const;
   void add_trace(int id);
   vector<int> get_trace() const;
+  void print_trace() const;
+  string serialize() const;
+  static Potato deserialize(const std::string& s);
 };
