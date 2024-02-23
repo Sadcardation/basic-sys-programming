@@ -10,6 +10,14 @@
 
 #include "utils.hpp"
 
+// Refer to code in below resources:
+// https://beej.us/guide/bgnet/examples/selectserver.c
+// https://beej.us/guide/bgnet/examples/client.c
+// https://beej.us/guide/bgnet/examples/listener.c
+// https://beej.us/guide/bgnet/examples/server.c
+// https://beej.us/guide/bgnet/examples/talker.c
+// https://canvas.duke.edu/files/867349/ (06 - tcp_example.zip)
+
 using namespace std;
 
 int main(int argc, char *argv[]) {
