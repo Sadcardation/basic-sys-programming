@@ -10,9 +10,6 @@
 
 #include "utils.hpp"
 
-#define PORT                                                                   \
-  "23456" // port to which the server will be bound for neighboring connections
-
 using namespace std;
 
 int main(int argc, char *argv[]) {
