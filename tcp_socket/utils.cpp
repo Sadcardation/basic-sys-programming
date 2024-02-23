@@ -29,8 +29,8 @@ void print_string_details(const std::string &str) {
 
 int socket_build(const char *nodename, const char *servname,
                  const string side) {
-  int sockfd;   // Listening socket descriptor
-  int yes = 1;  // For setsockopt() SO_REUSEADDR, below
+  int sockfd;  // Listening socket descriptor
+  int yes = 1; // For setsockopt() SO_REUSEADDR, below
   int rv;
 
   struct addrinfo hints, *ai, *p;
@@ -44,21 +44,14 @@ int socket_build(const char *nodename, const char *servname,
     cerr << "getaddrinfo: " << gai_strerror(rv) << endl;
     exit(1);
   }
-  cout << "Got address info" << endl;
-  int count = 0;
   for (p = ai; p != NULL; p = p->ai_next) {
-    cout << "trying " << count++ << endl;
     sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-    cout << "finished " << count << endl;
     if (sockfd < 0) {
       cerr << "Failed to open socket:" << std::strerror(errno) << endl;
       continue;
     }
-
-    cout << "Socket opened" << endl;
     // Lose the pesky "address already in use" error message
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-    cout << "Set socket options" << endl;
     if (side == "server" && (bind(sockfd, p->ai_addr, p->ai_addrlen) < 0)) {
       cerr << "Failed to bind:" << std::strerror(errno) << endl;
       close(sockfd);
@@ -70,18 +63,16 @@ int socket_build(const char *nodename, const char *servname,
       close(sockfd);
       continue;
     }
-    cout << "Socket connected" << endl;
 
     break;
   }
-  
-  cout << "Socket built: " << sockfd << endl;
+
   // If we got here, it means we didn't get bound
   if (p == NULL) {
     return -1;
   }
 
-  freeaddrinfo(ai);  // All done with this
+  freeaddrinfo(ai); // All done with this
 
   // Listen
   if (side == "server" && (listen(sockfd, 10) == -1)) {
@@ -114,10 +105,10 @@ string serialize_addr(struct sockaddr_storage addr) {
   char ip_str[INET6_ADDRSTRLEN];
   std::string addr_str;
 
-  if (addr.ss_family == AF_INET) {  // IPv4
+  if (addr.ss_family == AF_INET) { // IPv4
     struct sockaddr_in *s = (struct sockaddr_in *)&addr;
     inet_ntop(AF_INET, &s->sin_addr, ip_str, sizeof(ip_str));
-  } else {  // IPv6
+  } else { // IPv6
     struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
     inet_ntop(AF_INET6, &s->sin6_addr, ip_str, sizeof(ip_str));
   }
@@ -133,16 +124,16 @@ bool send_all_str(int socket, const void *buffer, size_t length) {
     if (i < 1) {
       std::cerr << "send() failed: " << std::strerror(errno) << std::endl;
       return false;
-    }             // Return false on send error
-    ptr += i;     // Move pointer past bytes sent
-    length -= i;  // Decrease remaining bytes to send
+    }            // Return false on send error
+    ptr += i;    // Move pointer past bytes sent
+    length -= i; // Decrease remaining bytes to send
   }
-  return true;  // Return true when all data is sent
+  return true; // Return true when all data is sent
 }
 
 bool send_str_with_header(int socket, const std::string &message) {
   // Calculate message length
-  uint32_t msg_length = htonl(message.length());  // Ensure network byte order
+  uint32_t msg_length = htonl(message.length()); // Ensure network byte order
 
   // Send header (message length)
   if (!send_all_str(socket, &msg_length, sizeof(msg_length))) {
@@ -186,7 +177,8 @@ bool recv_str_with_header(int socket, std::string &out_str) {
 
   // Receive the header
   n_received = recv(socket, &msg_length, sizeof(msg_length), 0);
-  if (n_received < 1) return false;
+  if (n_received < 1)
+    return false;
 
   // Convert message length from network byte order to host byte order
   msg_length = ntohl(msg_length);
@@ -202,7 +194,6 @@ int connect_player_serv(string player_addr) {
   if (colon_pos != string::npos) {
     string nodename = player_addr.substr(0, colon_pos);
     string servname = player_addr.substr(colon_pos + 1);
-    cout << "Connecting to " << nodename << " at port " << servname << endl;
 
     return socket_build(nodename.c_str(), servname.c_str(), "player");
   }
@@ -227,4 +218,13 @@ string port_num_socket(int socket) {
     }
   }
   return "";
+}
+
+void send_end_msg(vector<Player> &players) {
+  for (Player player : players) {
+    if (!send_str_with_header(player.get_socket(), "game_over")) {
+      cerr << "Failed to send game over." << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
 }

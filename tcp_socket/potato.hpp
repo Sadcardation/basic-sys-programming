@@ -15,6 +15,7 @@ public:
   Potato(const Potato &p);
   Potato &operator=(const Potato &p);
   int get_hops() const;
+  void set_hops(int num_hops);
   void add_trace(int id);
   vector<int> get_trace() const;
   void print_trace() const;

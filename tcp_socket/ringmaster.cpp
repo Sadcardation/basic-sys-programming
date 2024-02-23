@@ -12,21 +12,16 @@
 
 using namespace std;
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   if (argc != 4) {
     cerr << "Usage: ringmaster <port_num> <num_players> <num_hops>" << endl;
     exit(EXIT_FAILURE);
   }
 
-  const char* port_num = argv[1];
-  const char* num_players = argv[2];
-  const char* num_hops = argv[3];
+  const char *port_num = argv[1];
+  const char *num_players = argv[2];
+  const char *num_hops = argv[3];
   const string side = "server";
-
-  // prompt
-  cout << "Potato Ringmaster" << endl;
-  cout << "Players = " << num_players << endl;
-  cout << "Hops = " << num_hops << endl;
 
   if (atoi(num_players) <= 1) {
     cerr << "Number of players must be greater than 1." << endl;
@@ -36,6 +31,11 @@ int main(int argc, char* argv[]) {
     cerr << "Number of hops must be between 0 and 512." << endl;
     exit(EXIT_FAILURE);
   }
+
+  // prompt
+  cout << "Potato Ringmaster" << endl;
+  cout << "Players = " << num_players << endl;
+  cout << "Hops = " << num_hops << endl;
 
   Potato potato(atoi(num_hops));
   vector<Player> players;
@@ -47,10 +47,10 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  fd_set master;    // master file descriptor list
-  fd_set read_fds;  // temp file descriptor list for select()
-  int fdmax;        // maximum file descriptor number
-  int newfd;        // newly accept()ed socket descriptor
+  fd_set master;   // master file descriptor list
+  fd_set read_fds; // temp file descriptor list for select()
+  int fdmax;       // maximum file descriptor number
+  int newfd;       // newly accept()ed socket descriptor
 
   socklen_t addrlen;
   struct sockaddr_storage remoteaddr;
@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
 
   // game initialization
   while (all_ready != atoi(num_players)) {
-    read_fds = master;  // copy it
+    read_fds = master; // copy it
     if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
       cerr << "select" << endl;
       exit(EXIT_FAILURE);
@@ -88,13 +88,13 @@ int main(int argc, char* argv[]) {
         if (i == listener) {
           // handle new connections
           addrlen = sizeof(remoteaddr);
-          newfd = accept(listener, (struct sockaddr*)&remoteaddr, &addrlen);
+          newfd = accept(listener, (struct sockaddr *)&remoteaddr, &addrlen);
           if (newfd == -1) {
             cerr << "Failed to accept new connection from Player." << endl;
             exit(EXIT_FAILURE);
           } else {
-            FD_SET(newfd, &master);  // add to master set
-            if (newfd > fdmax) {     // keep track of the max
+            FD_SET(newfd, &master); // add to master set
+            if (newfd > fdmax) {    // keep track of the max
               fdmax = newfd;
             }
             players.push_back(Player(connected_players, newfd, remoteaddr));
@@ -103,8 +103,8 @@ int main(int argc, char* argv[]) {
         } else {
           // handle data from a client
           if ((nbytes = recv(i, buf.data(), buf.size(), 0)) <= 0) {
-            close(i);            // bye!
-            FD_CLR(i, &master);  // remove from master set
+            close(i);           // bye!
+            FD_CLR(i, &master); // remove from master set
           } else if (string(buf.data()) == "local_ready") {
             int player_id = which_player_socket(i, players);
             if (player_id == -1) {
@@ -160,23 +160,29 @@ int main(int argc, char* argv[]) {
   }
 
   // game start
+  bool game_over = false;
+  string potato_msg;
 
-  // send potato to a random player
-  srand((unsigned int)time(NULL) + stoul(num_players));
-  int init_player = rand() % atoi(num_players);
-  cout << "Ready to start the game, sending potato to player " << init_player
-       << endl;
+  if (potato.get_hops() == 0) {
+    send_end_msg(players);
+    game_over = true;
+  } else {
+    // send potato to a random player
+    srand((unsigned int)time(NULL) + stoul(num_players));
+    int init_player = rand() % atoi(num_players);
+    cout << "Ready to start the game, sending potato to player " << init_player
+         << endl;
 
-  string potato_msg = potato.serialize();
-  print_string_details(potato_msg);
-  if (!send_str_with_header(socket_of_player(init_player, players), potato_msg)) {
-    cerr << "Failed to send potato to player " << init_player << endl;
-    exit(EXIT_FAILURE);
+    potato_msg = potato.serialize();
+    if (!send_str_with_header(socket_of_player(init_player, players),
+                              potato_msg)) {
+      cerr << "Failed to send potato to player " << init_player << endl;
+      exit(EXIT_FAILURE);
+    }
   }
 
-  bool game_over = false;
   while (!game_over) {
-    read_fds = master;  // copy it
+    read_fds = master; // copy it
     if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
       cerr << "select" << endl;
       exit(EXIT_FAILURE);
@@ -193,13 +199,8 @@ int main(int argc, char* argv[]) {
           if (p.get_hops() == 0) {
             cout << "Trace of the potato:" << endl;
             p.print_trace();
-            cout << "Game over" << endl;
-            for (Player player : players) {
-              if (!send_str_with_header(player.get_socket(), "game_over")) {
-                cerr << "Failed to send game over." << endl;
-                exit(EXIT_FAILURE);
-              }
-            }
+            // cout << "Game over" << endl;
+            send_end_msg(players);
             game_over = true;
           }
         }

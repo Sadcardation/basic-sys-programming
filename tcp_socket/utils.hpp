@@ -39,5 +39,6 @@ bool recv_all_str(int socket, std::string& outStr, size_t length);
 bool recv_str_with_header(int socket, std::string& outStr);
 int connect_player_serv(string player_addr);
 string port_num_socket(int socket);
+void send_end_msg(vector<Player>& players);
 
 #endif
