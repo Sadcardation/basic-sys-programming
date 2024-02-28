@@ -3,6 +3,7 @@
 #include <unistd.h>
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -67,12 +68,12 @@ int main(int argc, char *argv[]) {
   string player_id;
   string host_player_addr;
 
-  const string init_msg = port_num_socket(player_sk);
+  string init_msg = port_num_socket(player_sk);
   if (init_msg.empty()) {
     cerr << "Failed to get port number of player" << endl;
     exit(EXIT_FAILURE);
   }
-  send_all_str(server_sk, init_msg.c_str(), init_msg.length());
+  send_str_with_header(server_sk, init_msg);
 
   // 0->left player (host) (player_id - 1), 1->right player (client) (player_id
   // + 1)
@@ -148,8 +149,8 @@ int main(int argc, char *argv[]) {
   }
 
   // reminder the ringmaster that local players are ready
-  const string ready_msg = "local_ready";
-  send_all_str(server_sk, ready_msg.c_str(), ready_msg.length());
+  string ready_msg = "local_ready";
+  send_str_with_header(server_sk, ready_msg);
 
   string potato_msg;
 
@@ -170,6 +171,7 @@ int main(int argc, char *argv[]) {
         }
         if (potato_msg == "game_over") {
           game_over = true;
+          break;
         } else {
           // receive potato (init player) and send to random neighbor
           Potato p = Potato::deserialize(potato_msg);
@@ -193,4 +195,8 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+
+  close(player_sk);
+  close(server_sk);
+  return EXIT_SUCCESS;
 }

@@ -55,16 +55,15 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  fd_set master;   // master file descriptor list
-  fd_set read_fds; // temp file descriptor list for select()
-  int fdmax;       // maximum file descriptor number
-  int newfd;       // newly accept()ed socket descriptor
+  fd_set master;    // master file descriptor list
+  fd_set read_fds;  // temp file descriptor list for select()
+  int fdmax;        // maximum file descriptor number
+  int newfd;        // newly accept()ed socket descriptor
 
   socklen_t addrlen;
   struct sockaddr_storage remoteaddr;
 
-  std::vector<char> buf(256);
-  ssize_t nbytes;
+  string prior_info;
 
   // potential msg
   string total_players_msg;
@@ -85,7 +84,7 @@ int main(int argc, char *argv[]) {
 
   // game initialization
   while (all_ready != atoi(num_players)) {
-    read_fds = master; // copy it
+    read_fds = master;  // copy it
     if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
       cerr << "select" << endl;
       exit(EXIT_FAILURE);
@@ -101,8 +100,8 @@ int main(int argc, char *argv[]) {
             cerr << "Failed to accept new connection from Player." << endl;
             exit(EXIT_FAILURE);
           } else {
-            FD_SET(newfd, &master); // add to master set
-            if (newfd > fdmax) {    // keep track of the max
+            FD_SET(newfd, &master);  // add to master set
+            if (newfd > fdmax) {     // keep track of the max
               fdmax = newfd;
             }
             players.push_back(Player(connected_players, newfd, remoteaddr));
@@ -110,10 +109,10 @@ int main(int argc, char *argv[]) {
           }
         } else {
           // handle data from a client
-          if ((nbytes = recv(i, buf.data(), buf.size(), 0)) <= 0) {
-            close(i);           // bye!
-            FD_CLR(i, &master); // remove from master set
-          } else if (string(buf.data()) == "local_ready") {
+          if (!recv_str_with_header(i, prior_info)) {
+            close(i);            // bye!
+            FD_CLR(i, &master);  // remove from master set
+          } else if (prior_info == "local_ready") {
             int player_id = which_player_socket(i, players);
             if (player_id == -1) {
               cerr << "Failed to find player id." << endl;
@@ -127,7 +126,7 @@ int main(int argc, char *argv[]) {
               cerr << "Failed to find player id." << endl;
               exit(EXIT_FAILURE);
             }
-            players[player_id].set_server_port(string(buf.data()));
+            players[player_id].set_server_port(prior_info);
             total_players_msg = num_players;
             if (!send_str_with_header(i, total_players_msg)) {
               cerr << "Failed to send total players." << endl;
@@ -190,7 +189,7 @@ int main(int argc, char *argv[]) {
   }
 
   while (!game_over) {
-    read_fds = master; // copy it
+    read_fds = master;  // copy it
     if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
       cerr << "select" << endl;
       exit(EXIT_FAILURE);
@@ -205,10 +204,15 @@ int main(int argc, char *argv[]) {
           }
           Potato p = Potato::deserialize(potato_msg);
           if (p.get_hops() == 0) {
-            cout << "Trace of the potato:" << endl;
+            cout << "Trace of potato:" << endl;
             p.print_trace();
             // cout << "Game over" << endl;
-            send_end_msg(players);
+            for (Player player : players) {
+              if (!send_str_with_header(player.get_socket(), "game_over")) {
+                cerr << "Failed to send game over." << endl;
+                exit(EXIT_FAILURE);
+              }
+            }
             game_over = true;
           }
         }
@@ -217,9 +221,6 @@ int main(int argc, char *argv[]) {
   }
 
   // close all sockets and exit
-  for (Player player : players) {
-    close(player.get_socket());
-  }
   close(listener);
   return EXIT_SUCCESS;
 }
