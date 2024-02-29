@@ -120,13 +120,13 @@ string serialize_addr(struct sockaddr_storage addr) {
 bool send_all_str(int socket, const void *buffer, size_t length) {
   const char *ptr = (const char *)buffer;
   while (length > 0) {
-    ssize_t i = send(socket, ptr, length, 0);
-    if (i < 1) {
-      std::cerr << "send() failed: " << std::strerror(errno) << std::endl;
-      return false;
-    }            // Return false on send error
-    ptr += i;    // Move pointer past bytes sent
-    length -= i; // Decrease remaining bytes to send
+  ssize_t i = send(socket, ptr, length, 0);
+  if (i < 1) {
+  std::cerr << "send() failed: " << std::strerror(errno) << std::endl;
+  return false;
+  }            // Return false on send error
+  ptr += i;    // Move pointer past bytes sent
+  length -= i; // Decrease remaining bytes to send
   }
   return true; // Return true when all data is sent
 }
@@ -158,12 +158,12 @@ bool recv_all_str(int socket, std::string &out_str, size_t length) {
   ssize_t n_received;
 
   while (total_received < length) {
-    n_received = recv(socket, buffer.data() + total_received,
-                      length - total_received, 0);
-    if (n_received < 1) {
-      // Handle errors or closed connection
-      return false;
-    }
+  n_received = recv(socket, buffer.data() + total_received,
+  length - total_received, 0);
+  if (n_received < 1) {
+  // Handle errors or closed connection
+  return false;
+  }
     total_received += n_received;
   }
 
@@ -221,8 +221,9 @@ string port_num_socket(int socket) {
 }
 
 void send_end_msg(vector<Player> &players) {
+  Potato p(-1);
   for (Player player : players) {
-    if (!send_str_with_header(player.get_socket(), "game_over")) {
+    if (!send_str_with_header(player.get_socket(), p.serialize())) {
       cerr << "Failed to send game over." << endl;
       exit(EXIT_FAILURE);
     }

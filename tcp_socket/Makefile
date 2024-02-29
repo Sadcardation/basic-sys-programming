@@ -21,3 +21,20 @@ player: player.o potato.o utils.o
 	$(CXX) $(CXXFLAGS) -o $@ player.o potato.o utils.o
 clean:
 	rm -f $(TARGETS) $(OBJS)
+submit:
+	@echo "Submitting the following files:"
+	@echo "Makefile"
+	@echo "potato.cpp"
+	@echo "potato.hpp"
+	@echo "ringmaster.cpp"
+	@echo "player.cpp"
+	@echo "utils.cpp"
+	@echo "utils.hpp"
+	@echo "Do you want to continue? [y/n]"
+	@read line; if [ $$line = "y" ]; then \
+		make clean; \
+		zip -r hot_potato.zip Makefile potato.cpp potato.hpp ringmaster.cpp player.cpp utils.cpp utils.hpp; \
+		echo "Submission file hot_potato.zip created"; \
+	else \
+		echo "Submission cancelled"; \
+	fi
