@@ -57,18 +57,18 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  fd_set master;         // master file descriptor list
-  fd_set read_fds;       // temp file descriptor list for select()
-  int newfd;             // newly accept()ed socket descriptor
-  int fdmax = listener;  // maximum file descriptor number
+  fd_set master;        // master file descriptor list
+  fd_set read_fds;      // temp file descriptor list for select()
+  int newfd;            // newly accept()ed socket descriptor
+  int fdmax = listener; // maximum file descriptor number
 
-  FD_ZERO(&master);  // clear the master and temp sets
+  FD_ZERO(&master); // clear the master and temp sets
   FD_ZERO(&read_fds);
 
   socklen_t addrlen;
   struct sockaddr_storage remoteaddr;
 
-  string prior_info;
+  string player_addr_info_msg;
 
   // potential msg
 
@@ -80,24 +80,21 @@ int main(int argc, char *argv[]) {
   while (connected_players < num_players_int) {
     addrlen = sizeof(remoteaddr);
     newfd = accept(listener, (struct sockaddr *)&remoteaddr, &addrlen);
-    FD_SET(newfd, &master);  // add to master set
+    FD_SET(newfd, &master); // add to master set
     if (newfd > fdmax) {
       fdmax = newfd;
     }
     players.push_back(Player(connected_players, newfd, remoteaddr));
-    recv_str_with_header(newfd, prior_info);
-    players[connected_players].set_server_port(prior_info);
+    send(newfd, &connected_players, sizeof(int), 0);
+    send(newfd, &num_players_int, sizeof(int), 0);
+    recv_str_with_header(newfd, player_addr_info_msg);
+    players[connected_players].set_server_port(player_addr_info_msg);
     connected_players += 1;
   }
 
   // send start info to players
   string addr_info_msg;
   int player_id;
-  for (Player player : players) {
-    player_id = player.get_id();
-    send(player.get_socket(), &player_id, sizeof(int), 0);
-    send(player.get_socket(), &num_players_int, sizeof(int), 0);
-  }
 
   // send neighbor info to players
   for (Player player : players) {
@@ -135,7 +132,7 @@ int main(int argc, char *argv[]) {
     send_str_with_header(socket_of_player(init_player, players), potato_msg);
   }
 
-  read_fds = master;  // copy it
+  read_fds = master; // copy it
   select(fdmax + 1, &read_fds, NULL, NULL, NULL);
 
   for (int i = 0; i <= fdmax; i++) {

@@ -45,22 +45,15 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  string init_msg = port_num_socket(player_sk);
-  if (init_msg.empty()) {
-    cerr << "Failed to get port number of player" << endl;
-    exit(EXIT_FAILURE);
-  }
-  send_str_with_header(server_sk, init_msg);
-
   socklen_t addrlen;
   struct sockaddr_storage remoteaddr;
 
-  fd_set master;    // master file descriptor list
-  fd_set read_fds;  // temp file descriptor list for select()
-  int fdmax;        // maximum file descriptor number
-  int newfd;        // newly accept()ed socket descriptorp
+  fd_set master;   // master file descriptor list
+  fd_set read_fds; // temp file descriptor list for select()
+  int fdmax;       // maximum file descriptor number
+  int newfd;       // newly accept()ed socket descriptorp
 
-  FD_ZERO(&master);  // clear the master and temp sets
+  FD_ZERO(&master); // clear the master and temp sets
   FD_ZERO(&read_fds);
 
   FD_SET(player_sk, &master);
@@ -80,11 +73,15 @@ int main(int argc, char *argv[]) {
   int player_id_int;
   int total_players_int;
 
+
   // receive info from ringmaster: total_players, player_id
   recv(server_sk, &player_id_int, sizeof(int), MSG_WAITALL);
   recv(server_sk, &total_players_int, sizeof(int), MSG_WAITALL);
   cout << "Connected as player " << player_id_int << " out of "
        << total_players_int << " total players" << endl;
+
+  string addr_info_msg = port_num_socket(player_sk);
+  send_str_with_header(server_sk, addr_info_msg);
 
   // build mapping with neighbors
   idx_to_id[0] = player_id_int - 1;
@@ -98,8 +95,8 @@ int main(int argc, char *argv[]) {
   // receive host player address and connect
   recv_str_with_header(server_sk, host_player_addr);
   newfd = connect_player_serv(host_player_addr);
-  FD_SET(newfd, &master);  // add to master set
-  if (newfd > fdmax) {     // keep track of the max
+  FD_SET(newfd, &master); // add to master set
+  if (newfd > fdmax) {    // keep track of the max
     fdmax = newfd;
   }
   idx_to_socket[0] = newfd;
@@ -107,8 +104,8 @@ int main(int argc, char *argv[]) {
   // accept connection from client player
   addrlen = sizeof(remoteaddr);
   newfd = accept(player_sk, (struct sockaddr *)&remoteaddr, &addrlen);
-  FD_SET(newfd, &master);  // add to master set
-  if (newfd > fdmax) {     // keep track of the max
+  FD_SET(newfd, &master); // add to master set
+  if (newfd > fdmax) {    // keep track of the max
     fdmax = newfd;
   }
   idx_to_socket[1] = newfd;
@@ -119,12 +116,13 @@ int main(int argc, char *argv[]) {
 
   // game loop
   string potato_msg;
+  srand((unsigned int)time(NULL) + player_id_int);
   while (true) {
-    read_fds = master;  // copy it
+    read_fds = master; // copy it
     select(fdmax + 1, &read_fds, NULL, NULL, NULL);
 
     for (int i = 0; i <= fdmax; i++) {
-      if (FD_ISSET(i, &read_fds)) {  // we got one!!
+      if (FD_ISSET(i, &read_fds)) { // we got one!!
         recv_str_with_header(i, potato_msg);
         break;
       }

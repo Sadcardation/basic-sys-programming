@@ -119,15 +119,17 @@ string serialize_addr(struct sockaddr_storage addr) {
 
 bool send_all_str(int socket, const void *buffer, size_t length) {
   const char *ptr = (const char *)buffer;
-  while (length > 0) {
-  ssize_t i = send(socket, ptr, length, 0);
-  if (i < 1) {
-  std::cerr << "send() failed: " << std::strerror(errno) << std::endl;
-  return false;
-  }            // Return false on send error
-  ptr += i;    // Move pointer past bytes sent
-  length -= i; // Decrease remaining bytes to send
-  }
+  send(socket, ptr, length, 0);
+
+  // while (length > 0) {
+  //   ssize_t i = send(socket, ptr, length, 0);
+  //   if (i < 1) {
+  //     std::cerr << "send() failed: " << std::strerror(errno) << std::endl;
+  //     return false;
+  //   }            // Return false on send error
+  //   ptr += i;    // Move pointer past bytes sent
+  //   length -= i; // Decrease remaining bytes to send
+  // }
   return true; // Return true when all data is sent
 }
 
@@ -154,20 +156,19 @@ bool recv_all_str(int socket, std::string &out_str, size_t length) {
   out_str.clear();
   out_str.reserve(length);
   std::vector<char> buffer(length);
-  size_t total_received = 0;
-  ssize_t n_received;
 
-  while (total_received < length) {
-  n_received = recv(socket, buffer.data() + total_received,
-  length - total_received, 0);
-  if (n_received < 1) {
-  // Handle errors or closed connection
-  return false;
-  }
-    total_received += n_received;
-  }
+  recv(socket, buffer.data(), length, MSG_WAITALL);
+  // while (total_received < length) {
+  //   n_received = recv(socket, buffer.data() + total_received,
+  //                     length - total_received, 0);
+  //   if (n_received < 1) {
+  //     // Handle errors or closed connection
+  //     return false;
+  //   }
+  //   total_received += n_received;
+  // }
 
-  out_str.assign(buffer.begin(), buffer.begin() + total_received);
+  out_str.assign(buffer.begin(), buffer.begin() + length);
   return true;
 }
 
