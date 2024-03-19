@@ -158,7 +158,7 @@ void query3(connection *C, string team_name) {
 void query4(connection *C, string team_state, string team_color) {
   work W(*C);
   stringstream ss;
-  ss << "SELECT FIRST_NAME, LAST_NAME, UNIFORM_NUM FROM PLAYER, TEAM, STATE, "
+  ss << "SELECT UNIFORM_NUM, FIRST_NAME, LAST_NAME FROM PLAYER, TEAM, STATE, "
         "COLOR WHERE TEAM.STATE_ID = STATE.STATE_ID AND TEAM.COLOR_ID = "
         "COLOR.COLOR_ID AND PLAYER.TEAM_ID = TEAM.TEAM_ID AND COLOR.NAME = ";
   ss << W.quote(team_color);
@@ -168,11 +168,12 @@ void query4(connection *C, string team_state, string team_color) {
   W.abort();
   nontransaction N(*C);
   result R(N.exec(ss.str()));
-  cout << "FIRST_NAME LAST_NAME UNIFORM_NUM" << endl;
+  cout << "UNIFORM_NUM FIRST_NAME LAST_NAME" << endl;
   for (result::const_iterator c = R.begin(); c != R.end(); ++c) {
-    printColumn<string>(c, 0);
+    printColumn<int>(c, 0);
     printColumn<string>(c, 1);
-    printColumn<int>(c, 2);
+    printColumn<string>(c, 2);
+    
     cout << endl;
   }
 }
